@@ -110,6 +110,79 @@
 }
 
 </style>
+
+  <!-- 自動最新版取得：公開中の同じHTMLを毎回確認し、更新時は自動反映 -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <script>
+    (() => {
+      "use strict";
+
+      const CHECK_INTERVAL_MS = 60 * 1000;
+      const sourceUrl = new URL(window.location.href);
+      sourceUrl.search = "";
+      sourceUrl.hash = "";
+      const storageKey = `latest-html:${sourceUrl.pathname}`;
+      let checking = false;
+
+      async function digest(text) {
+        const data = new TextEncoder().encode(text);
+        const hash = await crypto.subtle.digest("SHA-256", data);
+        return Array.from(new Uint8Array(hash))
+          .map(byte => byte.toString(16).padStart(2, "0"))
+          .join("");
+      }
+
+      async function fetchLatestHtml() {
+        if (checking || document.visibilityState === "hidden") return;
+        checking = true;
+
+        try {
+          const requestUrl = new URL(sourceUrl.href);
+          requestUrl.searchParams.set("_latest", Date.now().toString());
+
+          const response = await fetch(requestUrl.href, {
+            method: "GET",
+            cache: "no-store",
+            headers: {
+              "Cache-Control": "no-cache, no-store, must-revalidate",
+              "Pragma": "no-cache"
+            }
+          });
+
+          if (!response.ok) {
+            throw new Error(`最新版を取得できませんでした: ${response.status}`);
+          }
+
+          const latestHtml = await response.text();
+          if (!latestHtml.includes("<!DOCTYPE html") || !latestHtml.includes("</html>")) {
+            throw new Error("取得したデータがHTMLではありません。");
+          }
+
+          const latestHash = await digest(latestHtml);
+          const displayedHash = sessionStorage.getItem(storageKey);
+
+          if (displayedHash === latestHash) return;
+
+          sessionStorage.setItem(storageKey, latestHash);
+          document.open();
+          document.write(latestHtml);
+          document.close();
+        } catch (error) {
+          console.error("自動更新の確認に失敗しました。現在のページを表示します。", error);
+        } finally {
+          checking = false;
+        }
+      }
+
+      fetchLatestHtml();
+      window.setInterval(fetchLatestHtml, CHECK_INTERVAL_MS);
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") fetchLatestHtml();
+      });
+    })();
+  </script>
 </head>
 <body>
 <div class="internal">INTERNAL USE ONLY — 医師・歯科医師・歯科技工士・事業関係者向け</div>
