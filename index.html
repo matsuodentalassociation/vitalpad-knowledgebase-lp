@@ -109,6 +109,428 @@
   .credit-separator { display: none; }
 }
 
+
+    .ryusen-catch {
+  width: fit-content;
+  margin: 12px 0 8px;
+  color: var(--blue);
+  font-size: clamp(20px, 3vw, 35px);
+  font-weight: 800;
+  line-height: 1.45;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .ryusen-catch {
+    font-size: clamp(16px, 4.35vw, 20px);
+    white-space: normal;
+  }
+}
+    </style>
+
+  <!-- 最新版自動取得 -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+
+  <script>
+    (() => {
+      "use strict";
+
+      const CHECK_INTERVAL_MS = 60 * 1000;
+      const RUNTIME_HASH_META = "remote-content-hash";
+
+      const sourceUrl = new URL(window.location.href);
+      sourceUrl.search = "";
+      sourceUrl.hash = "";
+
+      let checking = false;
+
+      async function createHash(text) {
+        if (window.crypto && window.crypto.subtle) {
+          const data = new TextEncoder().encode(text);
+          const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+
+          return Array.from(new Uint8Array(hashBuffer))
+            .map(byte => byte.toString(16).padStart(2, "0"))
+            .join("");
+        }
+
+        let hash = 2166136261;
+
+        for (let index = 0; index < text.length; index += 1) {
+          hash ^= text.charCodeAt(index);
+          hash = Math.imul(hash, 16777619);
+        }
+
+        return (hash >>> 0).toString(16);
+      }
+
+      function getDisplayedHash() {
+        const meta = document.querySelector(
+          `meta[name="${RUNTIME_HASH_META}"]`
+        );
+
+        return meta ? meta.getAttribute("content") : "";
+      }
+
+      function addRuntimeHash(html, hash) {
+        const runtimeMeta =
+          `<meta name="${RUNTIME_HASH_META}" content="${hash}">`;
+
+        if (/<head[\s>]/i.test(html)) {
+          return html.replace(
+            /<head([^>]*)>/i,
+            `<head$1>${runtimeMeta}`
+          );
+        }
+
+        return html;
+      }
+
+      async function fetchLatestHtml() {
+        if (checking || document.visibilityState === "hidden") {
+          return;
+        }
+
+        checking = true;
+
+        try {
+          const requestUrl = new URL(sourceUrl.href);
+
+          requestUrl.searchParams.set(
+            "_latest",
+            `${Date.now()}-${Math.random().toString(36).slice(2)}`
+          );
+
+          const response = await fetch(requestUrl.href, {
+            method: "GET",
+            cache: "no-store",
+            credentials: "same-origin",
+            redirect: "follow",
+            headers: {
+              "Cache-Control": "no-cache, no-store, max-age=0",
+              "Pragma": "no-cache"
+            }
+          });
+
+          if (!response.ok) {
+            throw new Error(
+              `最新版を取得できませんでした: ${response.status}`
+            );
+          }
+
+          const latestHtml = await response.text();
+
+          const isHtml =
+            /<!doctype html/i.test(latestHtml) &&
+            /<\/html>/i.test(latestHtml);
+
+          if (!isHtml) {
+            throw new Error(
+              "取得したデータが正常なHTMLではありません。"
+            );
+          }
+
+          const latestHash = await createHash(latestHtml);
+          const displayedHash = getDisplayedHash();
+
+          /*
+           * 現在表示しているHTMLに、同じ実行時ハッシュが
+           * 埋め込まれている場合だけ更新を終了します。
+           *
+           * 古いキャッシュから開かれたHTMLには実行時ハッシュが
+           * 存在しないため、必ず取得した最新版へ置き換わります。
+           */
+          if (displayedHash === latestHash) {
+            return;
+          }
+
+          const updatedHtml = addRuntimeHash(
+            latestHtml,
+            latestHash
+          );
+
+          document.open("text/html", "replace");
+          document.write(updatedHtml);
+          document.close();
+        } catch (error) {
+          console.error(
+            "最新版の確認に失敗したため、現在のページを表示します。",
+            error
+          );
+        } finally {
+          checking = false;
+        }
+      }
+
+      /*
+       * HTML解析完了後に最新版を確認します。
+       */
+      if (document.readyState === "loading") {
+        document.addEventListener(
+          "DOMContentLoaded",
+          fetchLatestHtml,
+          { once: true }
+        );
+      } else {
+        fetchLatestHtml();
+      }
+
+      /*
+       * 1分ごとに確認します。
+       */
+      window.setInterval(
+        fetchLatestHtml,
+        CHECK_INTERVAL_MS
+      );
+
+      /*
+       * スマホで別アプリからブラウザへ戻った場合にも確認します。
+       */
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") {
+          fetchLatestHtml();
+        }
+      });
+
+      /*
+       * iPhone・Safariの戻るキャッシュ対策です。
+       */
+      window.addEventListener("pageshow", event => {
+        if (event.persisted) {
+          fetchLatestHtml();
+        }
+      });
+
+      /*
+       * ブラウザがオンラインへ復帰した場合にも確認します。
+       */
+      window.addEventListener(
+        "online",
+        fetchLatestHtml
+      );
+    })();
+  </script>
+</head>
+<body>
+<div class="internal">INTERNAL USE ONLY — 医師・歯科医師・歯科技工士・事業関係者向け</div>
+<nav><div class="container navin"><a class="brand" href="#top">Vital PAD Knowledge Base</a><div class="links"><a href="#supervisor">監修</a><a href="#technology">技術</a><a href="#products">製品</a><a href="#safety">安全管理</a><a href="#qa">Q&amp;A</a></div></div></nav>
+<main id="top">
+<header class="hero"><div class="container hero-grid"><div><div class="badge">MASTER KNOWLEDGE BASE</div><p class="ryusen-catch">株式会社龍洗がお届けする、セルフケアの新しい選択肢。</p><h1>医療現場の課題から生まれた<span>局所アプローチデバイス</span></h1><p class="lead">Vital PADは、特殊セラミックと歯科用樹脂を組み合わせ、用途に応じた形状で対象部位へ装着する局所アプローチ型デバイスです。</p></div><figure class="hero-img"><img src="https://i.imgur.com/cxKHqib.png" alt="Vital PAD ドーム型・ボタン型"><figcaption class="caption">Vital PAD ドーム型・ボタン型</figcaption></figure></div></header>
+<section id="supervisor"><div class="container"><div class="eyebrow">Medical Supervisor</div><div class="supervisor"><figure class="photo"><img src="https://i.imgur.com/kfs6P5Q.png" alt="監修 平瀬医師 水元医院院長"></figure><div><h2>監修：平瀬医師</h2><p class="meta">水元医院 院長 ／ 東京都葛飾区 ／ 地域医療50年以上</p><div class="quote"><p>水元医院は親子三代に渡って東京都葛飾区で皆様に支えられ、お陰様で50年以上地域医療に携わっております。地域の皆さまの母親のような存在であり続けたいと思っております。</p><p>現在は、日々のストレスや食生活などの生活習慣などにより、3大成人病をはじめとした現代人ならではの病気にかかる危険性をはらんでいます。診療では、病気を未然に防ぐため、日々の生活習慣を見直すことの大切さを患者様にお伝えしています。</p><p><strong>Vital PADは、そうした「日常のセルフケア習慣」を患者様ご自身で実践していただくための、新しいアプローチとして注目しています。</strong></p></div></div></div></div></section>
+<section class="alt"><div class="container"><div class="eyebrow">Product Definition</div><h2>『着る』から『狙う』へ。本当にほぐしたい場所へ届けるセルフケア。</h2><p class="lead">一般的なウェアが身体を面で包むのに対し、Vital PADは筋肉、関節、ツボなどの対象部位へ点・線・局所で配置することを目的とします。</p><div class="notice"><strong>表示上の注意：</strong>一般向け資料では、治療・改善・血流増加などの効能を断定せず、「日常のセルフケア」「コンディショニングをサポート」など、製品区分と根拠に即した表現へ調整してください。</div></div></section>
+<section class="dark" id="technology"><div class="container"><div class="eyebrow">Material &amp; Technology</div><h2>体温×素材×形状。3つの融合が生んだ、まったく新しい局所リカバリー。</h2><p class="lead">電源や電池を使わず、装着者自身の体温を利用する設計思想です。素材特性と製品形状は、臨床効果を直接証明する情報とは区別して管理します。</p><div class="cards"><article class="card"><h3>体温を受け取る</h3><p>装着者自身の体温を素材が受け取ります。</p></article><article class="card"><h3>遠赤外線として再放射</h3><p>セラミック配合素材の放射特性を活用します。</p></article><article class="card"><h3>形状で接触</h3><p>ドーム、ボタン、プレート等を用途別に選びます。</p></article><article class="card"><h3>日常で継続</h3><p>貼る、組み込む、装着する方法があります。</p></article></div><div class="tech-visual"><figure><img src="https://i.imgur.com/SLrSXvj.png" alt="Vital PADドーム形状の接触イメージ"><figcaption class="caption">ドーム形状による局所への接触イメージ</figcaption></figure><div><h3>ドーム形状による局所への接触</h3><p>ドーム型は直径7mm・高さ2.5mmの扁平な半球形状です。皮膚へ装着すると、ドーム部分が対象部位へ接触し、装着中の接触状態を維持します。</p><ul><li>対象部位へ点で接触</li><li>用途に合わせて固定方法を選択</li><li>高度な手技を必要とせず日常で使用</li></ul></div></div></div></section>
+<section id="products"><div class="container"><div class="eyebrow">Dedicated Products</div><h2>用途と装着部位に合わせた製品展開。</h2><div class="product-grid"><article class="product"><img src="https://i.imgur.com/fLBNeQJ.png" alt="アイマスク"><div class="product-body"><h3>アイマスク</h3><p>眼輪筋、こめかみ、側頭筋周辺の日常ケアに使用します。</p></div></article><article class="product"><img src="https://i.imgur.com/TIj4Ugt.png" alt="Vital Ear Plug"><div class="product-body"><h3>Vital Ear Plug</h3><p>耳へ装着する専用形状です。左右それぞれに適合するサイズを選定します。</p><div class="ear-detail"><img src="https://i.imgur.com/CycVPTY.png" alt="外音取り込み孔"><b>外音取り込み孔</b><p>耳を完全に塞がず、周囲の音を取り込みやすくするための構造です。聞こえ方には個人差があるため、安全確認が必要な場面では装着状態を確認してください。</p></div></div></article><article class="product"><img src="https://i.imgur.com/N4qoH6b.png" alt="中敷き"><div class="product-body"><h3>中敷き・ソックス</h3><p>足裏のツボや荷重部位へ配置し、日常のフットケアに使用します。</p></div></article><article class="product"><img src="https://i.imgur.com/F1VjL1M.png" alt="サポーター"><div class="product-body"><h3>サポーター</h3><p>首、肩、肘、腰、膝などの対象部位へ安定して配置します。</p></div></article></div></div></section>
+<section class="alt"><div class="container"><div class="eyebrow">How to Use</div><h2>貼る、縫う、組み込む、装着する。</h2><div class="cards"><article class="card"><h3>テープ貼付</h3><p>絆創膏やサージカルテープで固定します。同じ場所への連続貼付を避けます。</p></article><article class="card"><h3>衣類へ縫い付け</h3><p>ボタン型を肌着、靴下、帽子などへ縫い付けます。</p></article><article class="card"><h3>サポーターへ設置</h3><p>対象部位へ安定して接触する位置に配置します。</p></article><article class="card"><h3>専用品として装着</h3><p>アイマスク、イヤープラグ、中敷き等として使用します。</p></article></div></div></section>
+<section id="safety"><div class="container"><div class="eyebrow">Safety &amp; Maintenance</div><h2>ご使用前の確認事項と正しいお手入れ・保管基準。</h2><div class="safety"><article class="panel danger"><h3>使用を避ける・慎重に判断する対象</h3><ul><li>体内植込み型医用電気機器を使用している人</li><li>脳室シャントなど医療管理上の注意が必要な人</li><li>重篤な医療管理下にある人</li><li>装着部位に傷、湿疹、炎症、強い痛みがある人</li><li>皮膚が弱い人、テープかぶれを起こしやすい人</li><li>誤飲・誤用リスクのある小児や要介助者</li></ul></article><article class="panel care"><h3>洗浄・消毒・保管</h3><ul><li>中性洗剤と水による洗浄</li><li>アルコール消毒</li><li>製品仕様に基づく煮沸消毒</li><li>洗浄後は十分に乾燥</li><li>直射日光を避け清潔な場所で保管</li><li>塩素系漂白剤・酸性洗剤は使用しない</li></ul></article></div><div class="notice"><strong>使用中止：</strong>痛み、強い違和感、かゆみ、かぶれ、気分不良などが現れた場合は直ちに使用を中止し、症状が続く場合は医師等へ相談してください。</div></div></section>
+<section class="alt"><div class="container"><div class="eyebrow">Scientific Background</div><h2>赤外線輻射特性に関する参照情報。</h2><p class="lead">セラミック配合ポリウレタンフィルムの遠赤外線放射特性に関する論文を技術背景として参照します。Vital PAD自体の臨床効果を直接証明する資料とは区別します。</p><p><a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC7956283/" target="_blank" rel="noopener">参照論文：PMC7956283</a></p></div></section>
+<section id="qa"><div class="container"><div class="eyebrow">Internal Q&amp;A</div><h2>関係者向けQ&amp;A（全52問）</h2><p class="lead">「◎VitalPADナレッジベース.html」に収録されていたQ&amp;Aを全件移植し、表示名を「FAQ」から「Q&amp;A」へ統一しています。外部転用時は、製品区分・根拠資料・薬機法・景品表示法等を確認してください。</p><div class="qa-tools"><button type="button" onclick="document.querySelectorAll('.qa-item').forEach(x=>x.open=true)">すべて開く</button><button type="button" onclick="document.querySelectorAll('.qa-item').forEach(x=>x.open=false)">すべて閉じる</button></div><h3 class="qa-category">製品概要</h3>
+<details class="qa-item"><summary><span>Q1</span>Vital PADとは何ですか？</summary><div class="qa-answer"><strong>A1</strong><p>特殊セラミックと医療用樹脂を用い、自分の体温を遠赤外線として活用する局所アプローチ型リカバリーデバイスです。外部向けでは治療効果の断定を避けます。</p></div></details>
+<details class="qa-item"><summary><span>Q2</span>医療機器ですか？</summary><div class="qa-answer"><strong>A2</strong><p>本資料では内部情報として医療用樹脂やクラスⅡ準拠という表現を保持していますが、販売上の法的区分は別途確認が必要です。</p></div></details>
+<h3 class="qa-category">仕組み</h3>
+<details class="qa-item"><summary><span>Q3</span>どうして温かく感じるのですか？</summary><div class="qa-answer"><strong>A3</strong><p>装着者の体温を素材が吸収し、遠赤外線として再放射する体温駆動型の考え方によるものです。</p></div></details>
+<details class="qa-item"><summary><span>Q4</span>電気は使いますか？</summary><div class="qa-answer"><strong>A4</strong><p>使いません。電源、電池、充電は不要です。</p></div></details>
+<details class="qa-item"><summary><span>Q5</span>薬剤や化学反応は使いますか？</summary><div class="qa-answer"><strong>A5</strong><p>使いません。薬剤を皮膚へ浸透させる製品ではありません。</p></div></details>
+<h3 class="qa-category">素材</h3>
+<details class="qa-item"><summary><span>Q6</span>主な素材は何ですか？</summary><div class="qa-answer"><strong>A6</strong><p>植物性非晶質シリカと医療用樹脂を組み合わせた設計です。</p></div></details>
+<details class="qa-item"><summary><span>Q7</span>非晶質シリカとは何ですか？</summary><div class="qa-answer"><strong>A7</strong><p>結晶構造を持たないシリカで、遠赤外線輻射素材としての文脈で使用されています。</p></div></details>
+<h3 class="qa-category">遠赤外線</h3>
+<details class="qa-item"><summary><span>Q8</span>遠赤外線は何に使われますか？</summary><div class="qa-answer"><strong>A8</strong><p>温熱・保温・血行サポートの文脈で説明されることが多い波長帯です。</p></div></details>
+<details class="qa-item"><summary><span>Q9</span>論文はありますか？</summary><div class="qa-answer"><strong>A9</strong><p>シリカ等を含むセラミック配合フィルムの遠赤外線放射特性に関する論文が参照資料としてあります。ただし、Vital PADそのものの効能を直接証明するものとしては扱いません。</p></div></details>
+<h3 class="qa-category">使い方</h3>
+<details class="qa-item"><summary><span>Q10</span>どうやって使いますか？</summary><div class="qa-answer"><strong>A10</strong><p>テープで貼る、衣類に縫い付ける、サポーターに入れる、イヤープラグとして装着するなどの使い方があります。</p></div></details>
+<details class="qa-item"><summary><span>Q11</span>直接肌に貼ってもよいですか？</summary><div class="qa-answer"><strong>A11</strong><p>絆創膏やサージカルテープで貼付できます。皮膚が弱い人は短時間から試し、同じ場所への連続貼付を避けます。</p></div></details>
+<details class="qa-item"><summary><span>Q12</span>衣類に縫い付けられますか？</summary><div class="qa-answer"><strong>A12</strong><p>ボタン型は肌着、靴下、帽子、サポーターなどへ縫い付ける想定です。</p></div></details>
+<h3 class="qa-category">使用部位</h3>
+<details class="qa-item"><summary><span>Q13</span>どこに使えますか？</summary><div class="qa-answer"><strong>A13</strong><p>肩、首、腰、膝、肘、足裏、顔まわり、耳まわりなどに使用できます。</p></div></details>
+<details class="qa-item"><summary><span>Q14</span>顔に使えますか？</summary><div class="qa-answer"><strong>A14</strong><p>顔まわりでは咬筋、側頭筋、眼輪筋、フェイスラインなどの文脈があります。皮膚が薄い部位では慎重に使用します。</p></div></details>
+<details class="qa-item"><summary><span>Q15</span>足裏に使えますか？</summary><div class="qa-answer"><strong>A15</strong><p>中敷きやソックスに配置することで、足つぼや冷え・むくみのセルフケア文脈に展開できます。</p></div></details>
+<h3 class="qa-category">使用時間</h3>
+<details class="qa-item"><summary><span>Q16</span>最初は何分使えばよいですか？</summary><div class="qa-answer"><strong>A16</strong><p>初回は5分程度から開始し、身体の反応を見ながら徐々に延ばします。</p></div></details>
+<details class="qa-item"><summary><span>Q17</span>長時間使ってもよいですか？</summary><div class="qa-answer"><strong>A17</strong><p>違和感がなければ徐々に延ばせますが、貼付部位の皮膚状態を確認し、無理な長時間連続使用は避けます。</p></div></details>
+<h3 class="qa-category">安全性</h3>
+<details class="qa-item"><summary><span>Q18</span>ペースメーカー使用者は使えますか？</summary><div class="qa-answer"><strong>A18</strong><p>安全側の運用として使用を避ける、または医師確認を必須とします。</p></div></details>
+<details class="qa-item"><summary><span>Q19</span>脳室シャント使用者は使えますか？</summary><div class="qa-answer"><strong>A19</strong><p>医療管理上のリスクを考慮し、使用は慎重に判断します。原則として専門家確認が必要です。</p></div></details>
+<details class="qa-item"><summary><span>Q20</span>子どもに使えますか？</summary><div class="qa-answer"><strong>A20</strong><p>誤飲・誤用リスクがあるため、保護者管理下で慎重に扱います。</p></div></details>
+<details class="qa-item"><summary><span>Q21</span>高齢者に使えますか？</summary><div class="qa-answer"><strong>A21</strong><p>皮膚状態、認知機能、誤飲リスク、持病の有無を確認して慎重に使用します。</p></div></details>
+<h3 class="qa-category">禁忌</h3>
+<details class="qa-item"><summary><span>Q22</span>傷口に貼ってもよいですか？</summary><div class="qa-answer"><strong>A22</strong><p>傷口、湿疹、強いかぶれ、炎症部位には使用しません。</p></div></details>
+<details class="qa-item"><summary><span>Q23</span>他の治療器と併用できますか？</summary><div class="qa-answer"><strong>A23</strong><p>同一部位での併用は避けるか、専門家に確認します。</p></div></details>
+<details class="qa-item"><summary><span>Q24</span>使用中に気分が悪くなったら？</summary><div class="qa-answer"><strong>A24</strong><p>直ちに使用を中止し、安静にします。症状が続く場合は医師等に相談します。</p></div></details>
+<h3 class="qa-category">お手入れ</h3>
+<details class="qa-item"><summary><span>Q25</span>洗えますか？</summary><div class="qa-answer"><strong>A25</strong><p>中性洗剤で水洗いできます。</p></div></details>
+<details class="qa-item"><summary><span>Q26</span>アルコール消毒できますか？</summary><div class="qa-answer"><strong>A26</strong><p>可能です。</p></div></details>
+<details class="qa-item"><summary><span>Q27</span>煮沸消毒できますか？</summary><div class="qa-answer"><strong>A27</strong><p>可能です。</p></div></details>
+<details class="qa-item"><summary><span>Q28</span>使ってはいけない洗剤は？</summary><div class="qa-answer"><strong>A28</strong><p>塩素系漂白剤や酸性洗剤は避けます。樹脂の変色・劣化の原因となります。</p></div></details>
+<h3 class="qa-category">耐久性</h3>
+<details class="qa-item"><summary><span>Q29</span>どのくらい使えますか？</summary><div class="qa-answer"><strong>A29</strong><p>内部情報として最低2年間の耐久性が示されています。実際には使用状況により異なります。</p></div></details>
+<details class="qa-item"><summary><span>Q30</span>交換目安は？</summary><div class="qa-answer"><strong>A30</strong><p>ひび割れ、欠け、変形、変色、表面の劣化が見られた場合は交換を検討します。</p></div></details>
+<h3 class="qa-category">医科医院</h3>
+<details class="qa-item"><summary><span>Q31</span>医科医院ではどう提案できますか？</summary><div class="qa-answer"><strong>A31</strong><p>筋肉・関節まわりの日常ケア、慢性不調のセルフケア支援として提案できます。</p></div></details>
+<details class="qa-item"><summary><span>Q32</span>診療の代わりになりますか？</summary><div class="qa-answer"><strong>A32</strong><p>なりません。あくまで日常ケアの補助です。診療行為の代替として位置づけないよう注意します。</p></div></details>
+<h3 class="qa-category">歯科医院</h3>
+<details class="qa-item"><summary><span>Q33</span>歯科医院では何に使えますか？</summary><div class="qa-answer"><strong>A33</strong><p>食いしばり、咀嚼筋、側頭筋、顎関節まわり、マウスピース後の補助ケアに展開できます。</p></div></details>
+<details class="qa-item"><summary><span>Q34</span>マウスピースと併用できますか？</summary><div class="qa-answer"><strong>A34</strong><p>マウスピースは歯の保護、Vital PADは筋肉まわりのセルフケアという役割分担で説明できます。</p></div></details>
+<h3 class="qa-category">価格・購入</h3>
+<details class="qa-item"><summary><span>Q35</span>どこで買えますか？</summary><div class="qa-answer"><strong>A35</strong><p>医師・歯科医師からの処方・提案を通じて入手できます。一般の量販店やECサイトでの販売は想定していません。</p></div></details>
+<details class="qa-item"><summary><span>Q36</span>価格はいくらですか？</summary><div class="qa-answer"><strong>A36</strong><p>製品タイプ、サイズ、カスタマイズの有無により異なります。詳細は医療機関にお問い合わせください。</p></div></details>
+<h3 class="qa-category">継続使用</h3>
+<details class="qa-item"><summary><span>Q37</span>毎日使ってもよいですか？</summary><div class="qa-answer"><strong>A37</strong><p>皮膚状態や体調に問題がなければ、日常的な使用が可能です。</p></div></details>
+<details class="qa-item"><summary><span>Q38</span>効果はどのくらいで感じますか？</summary><div class="qa-answer"><strong>A38</strong><p>個人差があります。体感の有無やタイミングを断定せず、継続的な日常ケアとして案内します。</p></div></details>
+<h3 class="qa-category">就寝時</h3>
+<details class="qa-item"><summary><span>Q39</span>寝るときに使えますか？</summary><div class="qa-answer"><strong>A39</strong><p>イヤープラグやアイマスク、ソックスなどへの装着により、就寝中の使用も想定しています。</p></div></details>
+<details class="qa-item"><summary><span>Q40</span>寝返りで外れませんか？</summary><div class="qa-answer"><strong>A40</strong><p>衣類やサポーターに固定することで、就寝中も安定して使用しやすくなります。</p></div></details>
+<h3 class="qa-category">運動・スポーツ</h3>
+<details class="qa-item"><summary><span>Q41</span>運動中に使えますか？</summary><div class="qa-answer"><strong>A41</strong><p>サポーターや衣類に固定することで、運動中の使用も可能です。違和感や脱落のおそれがある場合は中止します。</p></div></details>
+<details class="qa-item"><summary><span>Q42</span>汗をかいても大丈夫ですか？</summary><div class="qa-answer"><strong>A42</strong><p>使用後は洗浄し、十分に乾燥させてください。皮膚の蒸れやかぶれにも注意します。</p></div></details>
+<h3 class="qa-category">入浴</h3>
+<details class="qa-item"><summary><span>Q43</span>お風呂で使えますか？</summary><div class="qa-answer"><strong>A43</strong><p>入浴時は外すことを推奨します。長時間の水没は避けてください。</p></div></details>
+<details class="qa-item"><summary><span>Q44</span>濡れても大丈夫ですか？</summary><div class="qa-answer"><strong>A44</strong><p>短時間の水濡れ後は水分を拭き取り、十分に乾燥させてください。</p></div></details>
+<h3 class="qa-category">複数人での使用</h3>
+<details class="qa-item"><summary><span>Q45</span>家族で共有できますか？</summary><div class="qa-answer"><strong>A45</strong><p>衛生面を考慮し、個人専用での使用を推奨します。共有する場合は必ず洗浄・消毒してください。</p></div></details>
+<h3 class="qa-category">科学的根拠</h3>
+<details class="qa-item"><summary><span>Q46</span>エビデンスはありますか？</summary><div class="qa-answer"><strong>A46</strong><p>非晶質シリカの遠赤外線放射特性に関する学術論文が参照資料として存在します。ただし、製品自体の有効性を直接証明する資料とは区別します。</p></div></details>
+<details class="qa-item"><summary><span>Q47</span>臨床試験は行っていますか？</summary><div class="qa-answer"><strong>A47</strong><p>開発段階で協力医師による患者サンプリング調査を実施しています。臨床試験と観察・サンプリング調査は区別して表現します。</p></div></details>
+<h3 class="qa-category">環境</h3>
+<details class="qa-item"><summary><span>Q48</span>環境に優しいですか？</summary><div class="qa-answer"><strong>A48</strong><p>電気不要で繰り返し使用可能な設計です。環境負荷の優位性を表示する場合は、比較条件と根拠を別途確認します。</p></div></details>
+<h3 class="qa-category">保管</h3>
+<details class="qa-item"><summary><span>Q49</span>保管方法は？</summary><div class="qa-answer"><strong>A49</strong><p>直射日光を避け、清潔で乾燥した場所に保管してください。</p></div></details>
+<details class="qa-item"><summary><span>Q50</span>使用期限はありますか？</summary><div class="qa-answer"><strong>A50</strong><p>年数だけで一律に判断せず、ひび割れ、欠け、変形、変色、表面状態などを確認し、劣化が見られた場合は交換してください。</p></div></details>
+<h3 class="qa-category">返品・交換</h3>
+<details class="qa-item"><summary><span>Q51</span>返品できますか？</summary><div class="qa-answer"><strong>A51</strong><p>購入元の医療機関の方針に従ってください。</p></div></details>
+<details class="qa-item"><summary><span>Q52</span>サイズが合わない場合は？</summary><div class="qa-answer"><strong>A52</strong><p>医師・歯科医師に相談し、サイズ変更やカスタム製作を検討してください。</p></div></details></div></section>
+</main>
+<section class="ending-banner" aria-label="Vital PAD エンディングメッセージ">
+  <div class="container ending-inner">
+    <div class="ending-eyebrow">Targeted Care for Everyday Life</div>
+    <h2 class="ending-title">必要な場所に、必要なケアを。</h2>
+    <div class="ending-copy">
+      <p>Vital PADは、装着者自身の体温と素材特性、用途に応じた形状を組み合わせ、身体の気になる部位へ局所的にアプローチするために生まれました。</p>
+      <p class="ending-message">日常の中に、狙って届けるという新しい選択を。<br>一人ひとりのセルフケアを、より続けやすく、より身近な習慣へ。</p>
+    </div>
+  </div>
+  <div class="ending-credits">
+    <div class="container">
+      <p><span class="credit-row">監修：水元医院 院長 平瀬悦子 医師</span><span class="credit-separator">｜</span><span class="credit-row">販売元：株式会社龍洗　〒125-0032 東京都葛飾区水元４丁目２２−６</span></p>
+      <p><span class="credit-row">Produced by MDA</span><span class="credit-separator">｜</span><span class="credit-row">Supervised by Dr. Etsuko Hirase (Mizumoto Clinic)</span></p>
+      <p>© 2026 Comprehensive Sleep Knowledge Project</p>
+    </div>
+  </div>
+</section>
+</body>
+</html><!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vital PAD｜関係者向け総合ナレッジベース</title>
+<style>
+:root{--navy:#102a43;--deep:#071b2d;--blue:#246b91;--aqua:#69c4d7;--sky:#eaf6fa;--ice:#f5fafc;--white:#fff;--text:#172433;--muted:#647486;--line:#d5e3e9;--red:#b42318;--amber:#9a6700}
+*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:"Hiragino Kaku Gothic ProN","Yu Gothic","Noto Sans JP",sans-serif;color:var(--text);line-height:1.9;background:#fff}img{display:block;max-width:100%}a{color:var(--blue)}.container{width:min(1120px,calc(100% - 40px));margin:auto}.internal{padding:9px;background:var(--deep);color:#fff;text-align:center;font-size:11px;letter-spacing:.12em}nav{position:sticky;top:0;z-index:20;background:#fffffff2;border-bottom:1px solid var(--line);backdrop-filter:blur(10px)}.navin{display:flex;justify-content:space-between;align-items:center;min-height:66px;gap:20px}.brand{font-weight:800;color:var(--navy);text-decoration:none}.links{display:flex;gap:16px;font-size:12px;font-weight:700}.links a{text-decoration:none;color:var(--muted)}.hero{padding:80px 0;background:linear-gradient(145deg,#f8fdff,#e7f5fa)}.hero-grid,.supervisor,.two,.tech-visual{display:grid;grid-template-columns:1fr 1fr;gap:42px;align-items:center}.badge,.eyebrow{color:var(--blue);font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}h1{font-size:clamp(38px,6vw,68px);line-height:1.25;color:var(--navy);margin:16px 0}h1 span{display:block;color:var(--blue)}.lead{font-size:17px;color:#40566a}.hero-img,.photo,.imagebox{padding:18px;background:#fff;border:1px solid var(--line);border-radius:22px;box-shadow:0 18px 50px #102a4314}.hero-img img{width:100%;aspect-ratio:1.15;object-fit:contain}.caption{font-size:11px;text-align:center;color:var(--muted);margin-top:9px}section{padding:78px 0}section.alt{background:var(--ice)}section.dark{background:linear-gradient(145deg,var(--deep),var(--navy));color:#fff}h2{font-size:clamp(27px,4vw,43px);line-height:1.45;color:var(--navy);margin:10px 0 22px}.dark h2{color:#fff}.dark .lead{color:#ffffffbf}.supervisor{align-items:start;padding:34px;border:1px solid var(--line);border-radius:24px;background:linear-gradient(135deg,#fff,var(--ice))}.photo img{width:100%;aspect-ratio:4/5;object-fit:cover;border-radius:14px}.supervisor h2{font-size:30px;margin:0 0 4px}.meta{color:var(--blue);font-weight:800;margin-bottom:18px}.quote{border-left:4px solid var(--aqua);padding-left:20px}.quote p{margin-bottom:12px}.notice{padding:18px 22px;border-left:4px solid #d69e2e;background:#fff8e6;border-radius:6px;margin:22px 0;font-size:13px}.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:32px}.card{padding:24px;border:1px solid var(--line);border-radius:18px;background:#fff}.card h3{color:var(--navy);margin-bottom:8px}.card p,.card li{font-size:13px;color:var(--muted)}.dark .card{background:#ffffff0d;border-color:#ffffff26}.dark .card h3{color:var(--aqua)}.dark .card p,.dark .card li{color:#ffffffbd}ul{padding-left:20px}.tech-visual{margin-top:30px;padding:24px;border:1px solid #ffffff2c;border-radius:20px;background:#ffffff0d}.tech-visual img{width:100%;max-height:430px;object-fit:contain;background:#fff;border-radius:14px}.tech-visual h3{color:var(--aqua);font-size:21px;margin-bottom:12px}.product-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-top:32px}.product{overflow:hidden;border:1px solid var(--line);border-radius:18px;background:#fff}.product>img{width:100%;height:190px;object-fit:contain;background:var(--ice);padding:14px}.product-body{padding:20px}.product h3{color:var(--navy);margin-bottom:8px}.product p,.product li{font-size:13px;color:var(--muted)}.ear-detail{margin-top:16px;padding-top:16px;border-top:1px solid var(--line)}.ear-detail img{width:100%;aspect-ratio:16/10;object-fit:contain;border:1px solid var(--line);border-radius:12px}.ear-detail b{display:block;padding:8px;background:var(--sky);color:var(--blue);text-align:center;font-size:11px}.tablewrap{overflow:auto;margin-top:28px;border:1px solid var(--line);border-radius:16px}table{width:100%;border-collapse:collapse;min-width:680px}th{background:var(--blue);color:#fff;text-align:left}th,td{padding:14px 16px;border-bottom:1px solid var(--line);font-size:13px;vertical-align:top}tr:nth-child(even) td{background:var(--ice)}.safety{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:28px}.panel{padding:26px;border-radius:18px}.danger{background:#fff5f5;border:1px solid #f1b5b0}.care{background:#f0fff4;border:1px solid #b7dfc4}.panel h3{margin-bottom:12px}.panel li{font-size:13px}.qa-tools{display:flex;gap:10px;flex-wrap:wrap;margin:24px 0}button{border:1px solid var(--line);border-radius:999px;background:#fff;color:var(--blue);padding:8px 14px;font-weight:700;cursor:pointer}.qa-category{display:inline-block;margin:26px 0 10px;padding:7px 14px;border-radius:999px;background:var(--blue);color:#fff;font-size:13px}.qa-item{border:1px solid var(--line);border-radius:13px;background:#fff;margin-bottom:10px;overflow:hidden}.qa-item summary{display:flex;gap:12px;align-items:flex-start;cursor:pointer;padding:18px 52px 18px 20px;color:var(--navy);font-weight:800;position:relative;list-style:none}.qa-item summary::-webkit-details-marker{display:none}.qa-item summary:after{content:"＋";position:absolute;right:20px;color:var(--blue);font-size:20px}.qa-item[open] summary:after{content:"−"}.qa-item summary span{color:var(--blue);font-size:12px;padding-top:3px}.qa-answer{display:grid;grid-template-columns:34px 1fr;gap:10px;padding:0 20px 18px;color:var(--muted);font-size:14px}.qa-answer strong{color:var(--blue)}footer{padding:30px 0;background:#f4f8fa;color:var(--muted);text-align:center;font-size:11px}@media(max-width:920px){.links{display:none}.hero-grid,.supervisor,.two,.tech-visual{grid-template-columns:1fr}.cards,.product-grid{grid-template-columns:1fr 1fr}}@media(max-width:640px){.container{width:min(100% - 28px,1120px)}section{padding:56px 0}.cards,.product-grid,.safety{grid-template-columns:1fr}.supervisor{padding:22px}}
+
+
+/* Vital PAD専用エンディングバナー */
+.ending-banner {
+  position: relative;
+  overflow: hidden;
+  padding: 96px 0 0;
+  color: #fff;
+  background:
+    radial-gradient(circle at 84% 12%, rgba(105,196,215,.24), transparent 31%),
+    radial-gradient(circle at 12% 88%, rgba(36,107,145,.20), transparent 35%),
+    linear-gradient(145deg, var(--deep), var(--navy));
+}
+.ending-banner::before {
+  position: absolute;
+  top: -210px;
+  right: -170px;
+  width: 540px;
+  height: 540px;
+  border: 1px solid rgba(105,196,215,.15);
+  border-radius: 50%;
+  content: "";
+}
+.ending-inner {
+  position: relative;
+  z-index: 1;
+  max-width: 920px;
+  margin: 0 auto;
+  text-align: center;
+}
+.ending-eyebrow {
+  margin-bottom: 18px;
+  color: var(--aqua);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .17em;
+  text-transform: uppercase;
+}
+.ending-title {
+  margin: 0 0 30px;
+  color: #fff;
+  font-size: clamp(30px,5vw,52px);
+  line-height: 1.48;
+  letter-spacing: -.025em;
+}
+.ending-copy {
+  max-width: 810px;
+  margin: 0 auto;
+  color: rgba(255,255,255,.80);
+  font-size: 16px;
+  line-height: 2.1;
+}
+.ending-message {
+  margin-top: 42px;
+  padding: 28px 34px;
+  border: 1px solid rgba(105,196,215,.30);
+  border-radius: 18px;
+  background: rgba(255,255,255,.06);
+  color: #fff;
+  font-size: clamp(16px,2.1vw,20px);
+  font-weight: 700;
+  line-height: 1.9;
+}
+.ending-credits {
+  position: relative;
+  z-index: 1;
+  margin-top: 72px;
+  padding: 24px 0 26px;
+  border-top: 1px solid rgba(105,196,215,.10);
+  background: #02091b;
+  color: rgba(105,196,215,.54);
+  text-align: center;
+  font-size: 10px;
+  line-height: 1.7;
+  letter-spacing: .025em;
+}
+.ending-credits p { margin: 0; }
+.ending-credits p + p { margin-top: 2px; }
+.credit-separator {
+  display: inline-block;
+  margin: 0 7px;
+  color: rgba(105,196,215,.36);
+}
+@media (max-width:640px) {
+  .ending-banner { padding-top: 64px; }
+  .ending-title { font-size: 30px; }
+  .ending-copy { font-size: 14px; }
+  .ending-message {
+    margin-top: 32px;
+    padding: 22px 19px;
+    font-size: 15px;
+    text-align: left;
+  }
+  .ending-credits {
+    margin-top: 52px;
+    padding: 22px 0 24px;
+    font-size: 9px;
+  }
+  .credit-row { display: block; }
+  .credit-separator { display: none; }
+}
+
 </style>
 
   <!-- 自動最新版取得：公開中の同じHTMLを毎回確認し、更新時は自動反映 -->
